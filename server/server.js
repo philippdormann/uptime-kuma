@@ -122,7 +122,6 @@ const { statusPageSocketHandler } = require("./socket-handlers/status-page-socke
 const databaseSocketHandler = require("./socket-handlers/database-socket-handler");
 const TwoFA = require("./2fa");
 const StatusPage = require("./model/status_page");
-const { cloudflaredSocketHandler, autoStart: cloudflaredAutoStart, stop: cloudflaredStop } = require("./socket-handlers/cloudflared-socket-handler");
 const { proxySocketHandler } = require("./socket-handlers/proxy-socket-handler");
 
 app.use(express.json());
@@ -1416,7 +1415,6 @@ try {
 
         // Status Page Socket Handler for admin only
         statusPageSocketHandler(socket);
-        cloudflaredSocketHandler(socket);
         databaseSocketHandler(socket);
         proxySocketHandler(socket);
 
@@ -1459,10 +1457,6 @@ try {
     });
 
     initBackgroundJobs(args);
-
-    // Start cloudflared at the end if configured
-    await cloudflaredAutoStart(cloudflaredToken);
-
 })();
 
 /**
@@ -1670,7 +1664,6 @@ async function shutdownFunction(signal) {
     await Database.close();
 
     stopBackgroundJobs();
-    await cloudflaredStop();
 }
 
 function getClientIp(socket) {

@@ -29,7 +29,7 @@ function flipStatus(s) {
 }
 exports.flipStatus = flipStatus;
 function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 exports.sleep = sleep;
 /**
@@ -70,8 +70,9 @@ class Logger {
             error: [],
             debug: [],
         };
-        if (typeof process !== "undefined" && process.env.UPTIME_KUMA_HIDE_LOG) {
-            let list = process.env.UPTIME_KUMA_HIDE_LOG.split(",").map(v => v.toLowerCase());
+        if (typeof process !== "undefined" &&
+            process.env.UPTIME_KUMA_HIDE_LOG) {
+            let list = process.env.UPTIME_KUMA_HIDE_LOG.split(",").map((v) => v.toLowerCase());
             for (let pair of list) {
                 // split first "_" only
                 let values = pair.split(/_(.*)/s);
@@ -90,7 +91,9 @@ class Logger {
         module = module.toUpperCase();
         level = level.toUpperCase();
         const now = new Date().toISOString();
-        const formattedMessage = (typeof msg === "string") ? `${now} [${module}] ${level}: ${msg}` : msg;
+        const formattedMessage = typeof msg === "string"
+            ? `${now} [${module}] ${level}: ${msg}`
+            : msg;
         if (level === "INFO") {
             console.info(formattedMessage);
         }
@@ -140,7 +143,8 @@ function polyfill() {
     if (!String.prototype.replaceAll) {
         String.prototype.replaceAll = function (str, newStr) {
             // If a regex pattern
-            if (Object.prototype.toString.call(str).toLowerCase() === "[object regexp]") {
+            if (Object.prototype.toString.call(str).toLowerCase() ===
+                "[object regexp]") {
                 return this.replace(str, newStr);
             }
             // If a string
@@ -186,21 +190,21 @@ exports.getRandomInt = getRandomInt;
  * Returns either the NodeJS crypto.randomBytes() function or its
  * browser equivalent implemented via window.crypto.getRandomValues()
  */
-let getRandomBytes = ((typeof window !== 'undefined' && window.crypto)
-    // Browsers
-    ? function () {
-        return (numBytes) => {
-            let randomBytes = new Uint8Array(numBytes);
-            for (let i = 0; i < numBytes; i += 65536) {
-                window.crypto.getRandomValues(randomBytes.subarray(i, i + Math.min(numBytes - i, 65536)));
-            }
-            return randomBytes;
-        };
-    }
-    // Node
-    : function () {
-        return require("crypto").randomBytes;
-    })();
+let getRandomBytes = (typeof window !== "undefined" && window.crypto
+    ? // Browsers
+        function () {
+            return (numBytes) => {
+                let randomBytes = new Uint8Array(numBytes);
+                for (let i = 0; i < numBytes; i += 65536) {
+                    window.crypto.getRandomValues(randomBytes.subarray(i, i + Math.min(numBytes - i, 65536)));
+                }
+                return randomBytes;
+            };
+        }
+    : // Node
+        function () {
+            return require("crypto").randomBytes;
+        })();
 function getCryptoRandomInt(min, max) {
     // synchronous version of: https://github.com/joepie91/node-random-number-csprng
     const range = max - min;
@@ -214,13 +218,13 @@ function getCryptoRandomInt(min, max) {
         if (bitsNeeded % 8 === 0)
             bytesNeeded += 1;
         bitsNeeded += 1;
-        mask = mask << 1 | 1;
+        mask = (mask << 1) | 1;
         tmpRange = tmpRange >>> 1;
     }
     const randomBytes = getRandomBytes(bytesNeeded);
     let randomValue = 0;
     for (let i = 0; i < bytesNeeded; i++) {
-        randomValue |= randomBytes[i] << 8 * i;
+        randomValue |= randomBytes[i] << (8 * i);
     }
     randomValue = randomValue & mask;
     if (randomValue <= range) {

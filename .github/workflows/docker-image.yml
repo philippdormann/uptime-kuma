@@ -36,6 +36,6 @@ jobs:
         file: ./Dockerfile
         push: true
         tags: |
-          ghcr.io/philippdormann/uptime-kuma/uptime:edge
+          ghcr.io/philippdormann/uptime-kuma:edge
         build-args: |
           ENVIRONMENT=production

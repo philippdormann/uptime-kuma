@@ -1,0 +1,13 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - 'main'
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Easy Docker - install, login, build, mutiplatform, push, minimal configuration
+        uses: LuckyTurtleDev/easy-docker-action@4242fba1bf891877a012157b0c9b3e3c8961d829

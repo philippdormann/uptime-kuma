@@ -200,7 +200,7 @@ export default {
         border-radius: $border-radius;
 
         &.empty {
-            background-color: aliceblue;
+            background-color: #999999;
         }
 
         &.down {

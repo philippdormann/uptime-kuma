@@ -37,6 +37,6 @@ jobs:
         target: final
         push: true
         tags: |
-          $REGISTRY/$OWNER/$IMAGE_NAME:$(date +%s)
+          ghcr.io/philippdormann/uptime-kuma/uptime:edge
         build-args: |
           ENVIRONMENT=production

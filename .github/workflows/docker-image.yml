@@ -34,7 +34,6 @@ jobs:
       with:
         context: .
         file: ./Dockerfile
-        target: final
         push: true
         tags: |
           ghcr.io/philippdormann/uptime-kuma/uptime:edge

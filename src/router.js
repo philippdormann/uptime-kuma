@@ -22,7 +22,6 @@ import APIKeys from "./components/settings/APIKeys.vue";
 import Plugins from "./components/settings/Plugins.vue";
 
 // Settings - Sub Pages
-import Appearance from "./components/settings/Appearance.vue";
 import General from "./components/settings/General.vue";
 const Notifications = () => import("./components/settings/Notifications.vue");
 import Tags from "./components/settings/Tags.vue";
@@ -85,10 +84,6 @@ const routes = [
                             {
                                 path: "general",
                                 component: General,
-                            },
-                            {
-                                path: "appearance",
-                                component: Appearance,
                             },
                             {
                                 path: "notifications",

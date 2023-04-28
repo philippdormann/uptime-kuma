@@ -73,11 +73,10 @@
         "@vitejs/plugin-vue": "3.2.0",
         "@vue/compiler-sfc": "3.2.47",
         "@vuepic/vue-datepicker": "3.6.8",
-        "aedes": "0.46.3",
         "bootstrap": "5.2.3",
         "chart.js": "4.3.0",
         "chartjs-adapter-dayjs-4": "1.0.4",
-        "concurrently": "7.6.0",
+        "concurrently": "8.0.1",
         "core-js": "3.30.1",
         "cronstrue": "2.26.0",
         "cross-env": "7.0.3",
@@ -87,16 +86,13 @@
         "favico.js": "0.3.10",
         "marked": "4.3.0",
         "node-ssh": "13.1.0",
-        "postcss-html": "1.5.0",
         "postcss-scss": "4.0.6",
         "prismjs": "1.29.0",
-        "qrcode": "1.5.3",
         "sass": "1.62.1",
-        "terser": "5.17.1",
         "timezones-list": "3.0.2",
         "typescript": "4.9.5",
         "v-pagination-3": "0.1.7",
-        "vite": "3.2.6",
+        "vite": "4.3.3",
         "vue": "3.2.47",
         "vue-chartjs": "5.2.0",
         "vue-confirm-dialog": "1.1.0",
@@ -108,6 +104,6 @@
         "vue-router": "4.1.6",
         "vue-toastification": "2.0.0-rc.5",
         "vuedraggable": "4.1.0",
-        "wait-on": "6.0.1"
+        "wait-on": "7.0.1"
     }
 }

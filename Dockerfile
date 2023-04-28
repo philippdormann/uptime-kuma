@@ -1,5 +1,4 @@
-# FROM node:14-alpine3.12  AS alpinebase
-FROM node:20-alpine3.16  AS alpinebase
+FROM node:20.0.0-alpine3.16  AS alpinebase
 WORKDIR /app
 
 # Install apprise, iputils for non-root ping, setpriv

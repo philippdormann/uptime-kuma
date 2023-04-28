@@ -1,13 +1,42 @@
-name: ci
+name: Docker CI
 
 on:
   push:
-    branches:
-      - 'main'
+    branches: [ main ]
 
 jobs:
-  docker:
+  build-push:
+    name: Buid and push Docker image to GitHub Container registry
     runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
     steps:
-      - name: Easy Docker - install, login, build, mutiplatform, push, minimal configuration
-        uses: LuckyTurtleDev/easy-docker-action@4242fba1bf891877a012157b0c9b3e3c8961d829
+    - name: Checkout the repository
+      uses: actions/checkout@v2
+
+    - name: Login to GitHub Container registry
+      uses: docker/login-action@v1
+      env:
+        GITHUB_USER: ${{ github.actor }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        registry: ghcr.io
+        username: $GITHUB_USER
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build and Push Docker Image
+      env:
+        REGISTRY: ghcr.io
+        OWNER: philippdormann
+        IMAGE_NAME: ${{ github.repository }}
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        file: ./docker/Dockerfile
+        target: final
+        push: true
+        tags: |
+          $REGISTRY/$OWNER/$IMAGE_NAME:$(date +%s)
+        build-args: |
+          ENVIRONMENT=production

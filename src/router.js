@@ -15,7 +15,6 @@ import Entry from "./pages/Entry.vue";
 import ManageStatusPage from "./pages/ManageStatusPage.vue";
 import AddStatusPage from "./pages/AddStatusPage.vue";
 import NotFound from "./pages/NotFound.vue";
-import DockerHosts from "./components/settings/Docker.vue";
 import MaintenanceDetails from "./pages/MaintenanceDetails.vue";
 import ManageMaintenance from "./pages/ManageMaintenance.vue";
 import APIKeys from "./components/settings/APIKeys.vue";
@@ -96,10 +95,6 @@ const routes = [
                             {
                                 path: "monitor-history",
                                 component: MonitorHistory,
-                            },
-                            {
-                                path: "docker-hosts",
-                                component: DockerHosts,
                             },
                             {
                                 path: "security",

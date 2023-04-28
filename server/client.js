@@ -96,22 +96,6 @@ async function sendImportantHeartbeatList(socket, monitorID, toUser = false, ove
 }
 
 /**
- * Emit proxy list to client
- * @param {Socket} socket Socket.io socket instance
- * @return {Promise<Bean[]>}
- */
-async function sendProxyList(socket) {
-    const timeLogger = new TimeLogger();
-
-    const list = await R.find("proxy", " user_id = ? ", [ socket.userID ]);
-    io.to(socket.userID).emit("proxyList", list.map(bean => bean.export()));
-
-    timeLogger.print("Send Proxy List");
-
-    return list;
-}
-
-/**
  * Emit API key list to client
  * @param {Socket} socket Socket.io socket instance
  * @returns {Promise<void>}
@@ -123,7 +107,7 @@ async function sendAPIKeyList(socket) {
     const list = await R.find(
         "api_key",
         "user_id=?",
-        [ socket.userID ],
+        [socket.userID],
     );
 
     for (let bean of list) {
@@ -136,35 +120,10 @@ async function sendAPIKeyList(socket) {
     return list;
 }
 
-/**
- * Send list of docker hosts to client
- * @param {Socket} socket Socket.io socket instance
- * @returns {Promise<Bean[]>}
- */
-async function sendDockerHostList(socket) {
-    const timeLogger = new TimeLogger();
-
-    let result = [];
-    let list = await R.find("docker_host", " user_id = ? ", [
-        socket.userID,
-    ]);
-
-    for (let bean of list) {
-        result.push(bean.toJSON());
-    }
-
-    io.to(socket.userID).emit("dockerHostList", result);
-
-    timeLogger.print("Send Docker Host List");
-
-    return list;
-}
 
 module.exports = {
     sendNotificationList,
     sendImportantHeartbeatList,
     sendHeartbeatList,
-    sendProxyList,
     sendAPIKeyList,
-    sendDockerHostList
 };

@@ -132,9 +132,6 @@ class Teams extends NotificationProvider {
                 case "keywork":
                     url = monitorJSON["url"];
                     break;
-                case "docker":
-                    url = monitorJSON["docker_host"];
-                    break;
                 default:
                     url = monitorJSON["hostname"];
                     break;

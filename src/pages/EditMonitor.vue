@@ -30,9 +30,6 @@
                                         <option value="dns">
                                             DNS
                                         </option>
-                                        <option value="docker">
-                                            {{ $t("Docker Container") }}
-                                        </option>
                                     </optgroup>
 
                                     <optgroup :label="$t('Passive Monitor Type')">
@@ -165,34 +162,6 @@
                                     </div>
                                 </div>
                             </template>
-
-                            <!-- Docker Container Name / ID -->
-                            <!-- For Docker Type -->
-                            <div v-if="monitor.type === 'docker'" class="my-3">
-                                <label for="docker_container" class="form-label">{{ $t("Container Name / ID") }}</label>
-                                <input id="docker_container" v-model="monitor.docker_container" type="text" class="form-control" required>
-                            </div>
-
-                            <!-- Docker Host -->
-                            <!-- For Docker Type -->
-                            <div v-if="monitor.type === 'docker'" class="my-3">
-                                <h2 class="mb-2">{{ $t("Docker Host") }}</h2>
-                                <p v-if="$root.dockerHostList.length === 0">
-                                    {{ $t("Not available, please setup.") }}
-                                </p>
-
-                                <div v-else class="mb-3">
-                                    <label for="docker-host" class="form-label">{{ $t("Docker Host") }}</label>
-                                    <select id="docket-host" v-model="monitor.docker_host" class="form-select">
-                                        <option v-for="host in $root.dockerHostList" :key="host.id" :value="host.id">{{ host.name }}</option>
-                                    </select>
-                                    <a href="#" @click="$refs.dockerHostDialog.show(monitor.docker_host)">{{ $t("Edit") }}</a>
-                                </div>
-
-                                <button class="btn btn-primary me-2" type="button" @click="$refs.dockerHostDialog.show()">
-                                    {{ $t("Setup Docker Host") }}
-                                </button>
-                            </div>
 
                             <!-- MQTT -->
                             <!-- For MQTT Type -->
@@ -537,8 +506,6 @@
             </form>
 
             <NotificationDialog ref="notificationDialog" @added="addedNotification" />
-            <DockerHostDialog ref="dockerHostDialog" @added="addedDockerHost" />
-            <ProxyDialog ref="proxyDialog" @added="addedProxy" />
         </div>
     </transition>
 </template>
@@ -548,8 +515,6 @@ import VueMultiselect from "vue-multiselect";
 import { useToast } from "vue-toastification";
 import CopyableInput from "../components/CopyableInput.vue";
 import NotificationDialog from "../components/NotificationDialog.vue";
-import DockerHostDialog from "../components/DockerHostDialog.vue";
-import ProxyDialog from "../components/ProxyDialog.vue";
 import TagsManager from "../components/TagsManager.vue";
 import { genSecret, isDev, MAX_INTERVAL_SECOND, MIN_INTERVAL_SECOND } from "../util.ts";
 import { hostNameRegexPattern } from "../util-frontend";
@@ -558,10 +523,8 @@ const toast = useToast();
 
 export default {
     components: {
-        ProxyDialog,
         CopyableInput,
         NotificationDialog,
-        DockerHostDialog,
         TagsManager,
         VueMultiselect,
     },
@@ -695,18 +658,6 @@ message HealthCheckResponse {
 
     },
     watch: {
-        "$root.proxyList"() {
-            if (this.isAdd) {
-                if (this.$root.proxyList && !this.monitor.proxyId) {
-                    const proxy = this.$root.proxyList.find(proxy => proxy.default);
-
-                    if (proxy) {
-                        this.monitor.proxyId = proxy.id;
-                    }
-                }
-            }
-        },
-
         "$route.fullPath"() {
             this.init();
         },
@@ -814,9 +765,6 @@ message HealthCheckResponse {
                     accepted_statuscodes: [ "200-299" ],
                     dns_resolve_type: "A",
                     dns_resolve_server: "1.1.1.1",
-                    docker_container: "",
-                    docker_host: null,
-                    proxyId: null,
                     mqttUsername: "",
                     mqttPassword: "",
                     mqttTopic: "",
@@ -824,14 +772,6 @@ message HealthCheckResponse {
                     authMethod: null,
                     httpBodyEncoding: "json"
                 };
-
-                if (this.$root.proxyList && !this.monitor.proxyId) {
-                    const proxy = this.$root.proxyList.find(proxy => proxy.default);
-
-                    if (proxy) {
-                        this.monitor.proxyId = proxy.id;
-                    }
-                }
 
                 for (let i = 0; i < this.$root.notificationList.length; i++) {
                     if (this.$root.notificationList[i].isDefault === true) {
@@ -976,21 +916,6 @@ message HealthCheckResponse {
          */
         addedNotification(id) {
             this.monitor.notificationIDList[id] = true;
-        },
-
-        /**
-         * Added a Proxy Event
-         * Enable it if the proxy is added in EditMonitor.vue
-         * @param {number} id ID of proxy to add
-         */
-        addedProxy(id) {
-            this.monitor.proxyId = id;
-        },
-
-        // Added a Docker Host Event
-        // Enable it if the Docker Host is added in EditMonitor.vue
-        addedDockerHost(id) {
-            this.monitor.docker_host = id;
         },
     },
 };

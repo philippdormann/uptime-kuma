@@ -70,9 +70,6 @@ log.debug("server", "Importing Notification");
 const { Notification } = require("./notification");
 Notification.init();
 
-log.debug("server", "Importing Proxy");
-const { Proxy } = require("./proxy");
-
 log.debug("server", "Importing Database");
 const Database = require("./database");
 
@@ -112,12 +109,10 @@ if (config.demoMode) {
 }
 
 // Must be after io instantiation
-const { sendNotificationList, sendHeartbeatList, sendImportantHeartbeatList, sendProxyList, sendDockerHostList, sendAPIKeyList } = require("./client");
+const { sendNotificationList, sendHeartbeatList, sendImportantHeartbeatList, sendAPIKeyList } = require("./client");
 const { statusPageSocketHandler } = require("./socket-handlers/status-page-socket-handler");
 const databaseSocketHandler = require("./socket-handlers/database-socket-handler");
 const StatusPage = require("./model/status_page");
-const { proxySocketHandler } = require("./socket-handlers/proxy-socket-handler");
-const { dockerSocketHandler } = require("./socket-handlers/docker-socket-handler");
 const { maintenanceSocketHandler } = require("./socket-handlers/maintenance-socket-handler");
 const { apiKeySocketHandler } = require("./socket-handlers/api-key-socket-handler");
 const { generalSocketHandler } = require("./socket-handlers/general-socket-handler");
@@ -166,12 +161,6 @@ let needSetup = false;
     // Entry Page
     app.get("/", async (request, response) => {
         let hostname = request.hostname;
-        if (await setting("trustProxy")) {
-            const proxy = request.headers["x-forwarded-host"];
-            if (proxy) {
-                hostname = proxy;
-            }
-        }
 
         log.debug("entry", `Request Domain: ${hostname}`);
 
@@ -475,9 +464,6 @@ let needSetup = false;
                 bean.dns_resolve_type = monitor.dns_resolve_type;
                 bean.dns_resolve_server = monitor.dns_resolve_server;
                 bean.pushToken = monitor.pushToken;
-                bean.docker_container = monitor.docker_container;
-                bean.docker_host = monitor.docker_host;
-                bean.proxyId = Number.isInteger(monitor.proxyId) ? monitor.proxyId : null;
                 bean.mqttUsername = monitor.mqttUsername;
                 bean.mqttPassword = monitor.mqttPassword;
                 bean.mqttTopic = monitor.mqttTopic;
@@ -1061,8 +1047,6 @@ let needSetup = false;
         // Status Page Socket Handler for admin only
         statusPageSocketHandler(socket);
         databaseSocketHandler(socket);
-        proxySocketHandler(socket);
-        dockerSocketHandler(socket);
         maintenanceSocketHandler(socket);
         apiKeySocketHandler(socket);
         generalSocketHandler(socket, server);
@@ -1167,8 +1151,6 @@ async function afterLogin(socket, user) {
     let monitorList = await server.sendMonitorList(socket);
     server.sendMaintenanceList(socket);
     sendNotificationList(socket);
-    sendProxyList(socket);
-    sendDockerHostList(socket);
     sendAPIKeyList(socket);
 
     await sleep(500);

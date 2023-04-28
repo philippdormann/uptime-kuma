@@ -11,13 +11,11 @@ const { tcping, ping, dnsResolve, checkCertificate, checkStatusCode, getTotalCli
 const { R } = require("redbean-node");
 const { BeanModel } = require("redbean-node/dist/bean-model");
 const { Notification } = require("../notification");
-const { Proxy } = require("../proxy");
 const { demoMode } = require("../config");
 const version = require("../../package.json").version;
 const apicache = require("../modules/apicache");
 const { UptimeKumaServer } = require("../uptime-kuma-server");
 const { CacheableDnsHttpAgent } = require("../cacheable-dns-http-agent");
-const { DockerHost } = require("../docker");
 const { UptimeCacheList } = require("../uptime-cache-list");
 
 /**
@@ -94,9 +92,6 @@ class Monitor extends BeanModel {
             dns_resolve_type: this.dns_resolve_type,
             dns_resolve_server: this.dns_resolve_server,
             dns_last_result: this.dns_last_result,
-            docker_container: this.docker_container,
-            docker_host: this.docker_host,
-            proxyId: this.proxy_id,
             notificationIDList,
             tags: tags,
             maintenance: await Monitor.isUnderMaintenance(this.id),
@@ -311,20 +306,6 @@ class Monitor extends BeanModel {
                         options.data = bodyValue;
                     }
 
-                    if (this.proxy_id) {
-                        const proxy = await R.load("proxy", this.proxy_id);
-
-                        if (proxy && proxy.active) {
-                            const { httpAgent, httpsAgent } = Proxy.createAgents(proxy, {
-                                httpsAgentOptions: httpsAgentOptions,
-                            });
-
-                            options.proxy = false;
-                            options.httpAgent = httpAgent;
-                            options.httpsAgent = httpsAgent;
-                        }
-                    }
-
                     if (!options.httpsAgent) {
                         options.httpsAgent = new https.Agent(httpsAgentOptions);
                     }
@@ -523,41 +504,6 @@ class Monitor extends BeanModel {
                         } catch (_) { }
                     } else {
                         throw new Error("Server not found on Steam");
-                    }
-                } else if (this.type === "docker") {
-                    log.debug("monitor", `[${this.name}] Prepare Options for Axios`);
-
-                    const dockerHost = await R.load("docker_host", this.docker_host);
-
-                    const options = {
-                        url: `/containers/${this.docker_container}/json`,
-                        timeout: this.interval * 1000 * 0.8,
-                        headers: {
-                            "Accept": "*/*",
-                            "User-Agent": "Uptime-Kuma/" + version,
-                        },
-                        httpsAgent: CacheableDnsHttpAgent.getHttpsAgent({
-                            maxCachedSessions: 0,      // Use Custom agent to disable session reuse (https://github.com/nodejs/node/issues/3940)
-                            rejectUnauthorized: !this.getIgnoreTls(),
-                        }),
-                        httpAgent: CacheableDnsHttpAgent.getHttpAgent({
-                            maxCachedSessions: 0,
-                        }),
-                    };
-
-                    if (dockerHost._dockerType === "socket") {
-                        options.socketPath = dockerHost._dockerDaemon;
-                    } else if (dockerHost._dockerType === "tcp") {
-                        options.baseURL = DockerHost.patchDockerURL(dockerHost._dockerDaemon);
-                    }
-
-                    log.debug("monitor", `[${this.name}] Axios Request`);
-                    let res = await axios.request(options);
-                    if (res.data.State.Running) {
-                        bean.status = UP;
-                        bean.msg = res.data.State.Status;
-                    } else {
-                        throw Error("Container State is " + res.data.State.Status);
                     }
                 } else if (this.type === "mqtt") {
                     bean.msg = await mqttAsync(this.hostname, this.mqttTopic, this.mqttSuccessMessage, {

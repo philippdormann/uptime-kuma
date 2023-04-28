@@ -95,23 +95,11 @@ export default {
                 "monitor-history": {
                     title: this.$t("Monitor History"),
                 },
-                "docker-hosts": {
-                    title: this.$t("Docker Hosts"),
-                },
                 security: {
                     title: this.$t("Security"),
                 },
                 "api-keys": {
                     title: this.$t("API Keys")
-                },
-                /*
-                Hidden for now: Unfortunately, after some test, I found that Playwright requires a lot of libraries to be installed on the Linux host in order to start Chrome or Firefox.
-                It will be hard to install, so I hide this feature for now. But it still accessible via URL: /settings/plugins.
-                plugins: {
-                    title: this.$tc("plugin", 2),
-                },*/
-                about: {
-                    title: this.$t("About"),
                 },
             };
         },
@@ -167,10 +155,6 @@ export default {
 
                 if (this.settings.tlsExpiryNotifyDays === undefined) {
                     this.settings.tlsExpiryNotifyDays = [ 7, 14, 21 ];
-                }
-
-                if (this.settings.trustProxy === undefined) {
-                    this.settings.trustProxy = false;
                 }
 
                 this.settingsLoaded = true;

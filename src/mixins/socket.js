@@ -48,15 +48,7 @@ export default {
             statusPageList: [],
             proxyList: [],
             connectionErrorMsg: "Cannot connect to the socket server. Reconnecting...",
-            showReverseProxyGuide: true,
-            cloudflared: {
-                cloudflareTunnelToken: "",
-                installed: null,
-                running: false,
-                message: "",
-                errorMessage: "",
-                currentPassword: "",
-            }
+            showReverseProxyGuide: false,
         };
     },
 
@@ -406,50 +398,6 @@ export default {
         },
 
         /**
-         * Callback for general socket requests
-         * @callback socketCB
-         * @param {Object} res Result of operation
-         */
-        /** Prepare 2FA configuration */
-        prepare2FA(callback) {
-            socket.emit("prepare2FA", callback);
-        },
-
-        /**
-         * Save the current 2FA configuration
-         * @param {any} secret Unused
-         * @param {socketCB} callback
-         */
-        save2FA(secret, callback) {
-            socket.emit("save2FA", callback);
-        },
-
-        /**
-         * Disable 2FA for this user
-         * @param {socketCB} callback
-         */
-        disable2FA(callback) {
-            socket.emit("disable2FA", callback);
-        },
-
-        /**
-         * Verify the provided 2FA token
-         * @param {string} token Token to verify
-         * @param {socketCB} callback
-         */
-        verifyToken(token, callback) {
-            socket.emit("verifyToken", token, callback);
-        },
-
-        /**
-         * Get current 2FA status
-         * @param {socketCB} callback
-         */
-        twoFAStatus(callback) {
-            socket.emit("twoFAStatus", callback);
-        },
-
-        /**
          * Get list of monitors
          * @param {socketCB} callback
          */
@@ -579,17 +527,6 @@ export default {
             console.log("reset heartbeat list");
             this.heartbeatList = {};
             this.importantHeartbeatList = {};
-        },
-
-        /**
-         * Upload the provided backup
-         * @param {string} uploadedJSON JSON to upload
-         * @param {string} importHandle Type of import. If set to
-         * most data in database will be replaced
-         * @param {socketCB} callback
-         */
-        uploadBackup(uploadedJSON, importHandle, callback) {
-            socket.emit("uploadBackup", uploadedJSON, importHandle, callback);
         },
 
         /**

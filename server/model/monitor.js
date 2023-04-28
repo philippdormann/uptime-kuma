@@ -5,8 +5,8 @@ const { Prometheus } = require("../prometheus");
 const { log, UP, DOWN, PENDING, MAINTENANCE, flipStatus, TimeLogger, MAX_INTERVAL_SECOND, MIN_INTERVAL_SECOND,
     SQL_DATETIME_FORMAT
 } = require("../../src/util");
-const { tcping, ping, dnsResolve, checkCertificate, checkStatusCode, getTotalClientInRoom, setting, mssqlQuery, postgresQuery, mysqlQuery, mqttAsync, setSetting, httpNtlm, radius, grpcQuery,
-    redisPingAsync, mongodbPing,
+const { tcping, ping, dnsResolve, checkCertificate, checkStatusCode, getTotalClientInRoom, setting, postgresQuery, mysqlQuery, mqttAsync, setSetting, httpNtlm, grpcQuery,
+    redisPingAsync,
 } = require("../util-server");
 const { R } = require("redbean-node");
 const { BeanModel } = require("redbean-node/dist/bean-model");
@@ -19,7 +19,6 @@ const { UptimeKumaServer } = require("../uptime-kuma-server");
 const { CacheableDnsHttpAgent } = require("../cacheable-dns-http-agent");
 const { DockerHost } = require("../docker");
 const { UptimeCacheList } = require("../uptime-cache-list");
-const Gamedig = require("gamedig");
 
 /**
  * status:
@@ -110,8 +109,6 @@ class Monitor extends BeanModel {
             grpcMethod: this.grpcMethod,
             grpcServiceName: this.grpcServiceName,
             grpcEnableTls: this.getGrpcEnableTls(),
-            radiusCalledStationId: this.radiusCalledStationId,
-            radiusCallingStationId: this.radiusCallingStationId,
             game: this.game,
             httpBodyEncoding: this.httpBodyEncoding
         };
@@ -127,9 +124,6 @@ class Monitor extends BeanModel {
                 basic_auth_pass: this.basic_auth_pass,
                 pushToken: this.pushToken,
                 databaseConnectionString: this.databaseConnectionString,
-                radiusUsername: this.radiusUsername,
-                radiusPassword: this.radiusPassword,
-                radiusSecret: this.radiusSecret,
                 mqttUsername: this.mqttUsername,
                 mqttPassword: this.mqttPassword,
                 authWorkstation: this.authWorkstation,
@@ -530,21 +524,6 @@ class Monitor extends BeanModel {
                     } else {
                         throw new Error("Server not found on Steam");
                     }
-                } else if (this.type === "gamedig") {
-                    try {
-                        const state = await Gamedig.query({
-                            type: this.game,
-                            host: this.hostname,
-                            port: this.port,
-                            givenPortOnly: true,
-                        });
-
-                        bean.msg = state.name;
-                        bean.status = UP;
-                        bean.ping = state.ping;
-                    } catch (e) {
-                        throw new Error(e.message);
-                    }
                 } else if (this.type === "docker") {
                     log.debug("monitor", `[${this.name}] Prepare Options for Axios`);
 
@@ -588,14 +567,6 @@ class Monitor extends BeanModel {
                         interval: this.interval,
                     });
                     bean.status = UP;
-                } else if (this.type === "sqlserver") {
-                    let startTime = dayjs().valueOf();
-
-                    await mssqlQuery(this.databaseConnectionString, this.databaseQuery);
-
-                    bean.msg = "";
-                    bean.status = UP;
-                    bean.ping = dayjs().valueOf() - startTime;
                 } else if (this.type === "grpc-keyword") {
                     let startTime = dayjs().valueOf();
                     const options = {
@@ -640,51 +611,6 @@ class Monitor extends BeanModel {
 
                     bean.msg = await mysqlQuery(this.databaseConnectionString, this.databaseQuery);
                     bean.status = UP;
-                    bean.ping = dayjs().valueOf() - startTime;
-                } else if (this.type === "mongodb") {
-                    let startTime = dayjs().valueOf();
-
-                    await mongodbPing(this.databaseConnectionString);
-
-                    bean.msg = "";
-                    bean.status = UP;
-                    bean.ping = dayjs().valueOf() - startTime;
-
-                } else if (this.type === "radius") {
-                    let startTime = dayjs().valueOf();
-
-                    // Handle monitors that were created before the
-                    // update and as such don't have a value for
-                    // this.port.
-                    let port;
-                    if (this.port == null) {
-                        port = 1812;
-                    } else {
-                        port = this.port;
-                    }
-
-                    try {
-                        const resp = await radius(
-                            this.hostname,
-                            this.radiusUsername,
-                            this.radiusPassword,
-                            this.radiusCalledStationId,
-                            this.radiusCallingStationId,
-                            this.radiusSecret,
-                            port
-                        );
-                        if (resp.code) {
-                            bean.msg = resp.code;
-                        }
-                        bean.status = UP;
-                    } catch (error) {
-                        bean.status = DOWN;
-                        if (error.response?.code) {
-                            bean.msg = error.response.code;
-                        } else {
-                            bean.msg = error.message;
-                        }
-                    }
                     bean.ping = dayjs().valueOf() - startTime;
                 } else if (this.type === "redis") {
                     let startTime = dayjs().valueOf();

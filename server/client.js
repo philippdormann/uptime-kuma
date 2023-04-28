@@ -6,8 +6,6 @@ const { R } = require("redbean-node");
 const { UptimeKumaServer } = require("./uptime-kuma-server");
 const server = UptimeKumaServer.getInstance();
 const io = server.io;
-const { setting } = require("./util-server");
-const checkVersion = require("./check-version");
 
 /**
  * Send list of notification providers to client
@@ -139,21 +137,6 @@ async function sendAPIKeyList(socket) {
 }
 
 /**
- * Emits the version information to the client.
- * @param {Socket} socket Socket.io socket instance
- * @returns {Promise<void>}
- */
-async function sendInfo(socket) {
-    socket.emit("info", {
-        version: checkVersion.version,
-        latestVersion: checkVersion.latestVersion,
-        primaryBaseURL: await setting("primaryBaseURL"),
-        serverTimezone: await server.getTimezone(),
-        serverTimezoneOffset: server.getTimezoneOffset(),
-    });
-}
-
-/**
  * Send list of docker hosts to client
  * @param {Socket} socket Socket.io socket instance
  * @returns {Promise<Bean[]>}
@@ -183,6 +166,5 @@ module.exports = {
     sendHeartbeatList,
     sendProxyList,
     sendAPIKeyList,
-    sendInfo,
     sendDockerHostList
 };

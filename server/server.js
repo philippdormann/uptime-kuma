@@ -54,13 +54,6 @@ log.debug("server", "Importing http-graceful-shutdown");
 const gracefulShutdown = require("http-graceful-shutdown");
 log.debug("server", "Importing prometheus-api-metrics");
 const prometheusAPIMetrics = require("prometheus-api-metrics");
-log.debug("server", "Importing compare-versions");
-const compareVersions = require("compare-versions");
-const { passwordStrength } = require("check-password-strength");
-
-log.debug("server", "Importing 2FA Modules");
-const notp = require("notp");
-const base32 = require("thirty-two");
 
 const { UptimeKumaServer } = require("./uptime-kuma-server");
 const server = UptimeKumaServer.getInstance(args);
@@ -85,14 +78,11 @@ const Database = require("./database");
 
 log.debug("server", "Importing Background Jobs");
 const { initBackgroundJobs, stopBackgroundJobs } = require("./jobs");
-const { loginRateLimiter, twoFaRateLimiter } = require("./rate-limiter");
+const { loginRateLimiter } = require("./rate-limiter");
 
 const { apiAuth } = require("./auth");
 const { login } = require("./auth");
 const passwordHash = require("./password-hash");
-
-const checkVersion = require("./check-version");
-log.info("server", "Version: " + checkVersion.version);
 
 // If host is omitted, the server will accept connections on the unspecified IPv6 address (::) when IPv6 is available and the unspecified IPv4 address (0.0.0.0) otherwise.
 // Dual-stack support for (::)
@@ -109,13 +99,6 @@ const port = [ args.port, process.env.UPTIME_KUMA_PORT, process.env.PORT, 3001 ]
     .find(portValue => !isNaN(portValue));
 
 const disableFrameSameOrigin = !!process.env.UPTIME_KUMA_DISABLE_FRAME_SAMEORIGIN || args["disable-frame-sameorigin"] || false;
-const cloudflaredToken = args["cloudflared-token"] || process.env.UPTIME_KUMA_CLOUDFLARED_TOKEN || undefined;
-
-// 2FA / notp verification defaults
-const twoFAVerifyOptions = {
-    "window": 1,
-    "time": 30
-};
 
 /**
  * Run unit test after the server is ready
@@ -129,12 +112,10 @@ if (config.demoMode) {
 }
 
 // Must be after io instantiation
-const { sendNotificationList, sendHeartbeatList, sendImportantHeartbeatList, sendInfo, sendProxyList, sendDockerHostList, sendAPIKeyList } = require("./client");
+const { sendNotificationList, sendHeartbeatList, sendImportantHeartbeatList, sendProxyList, sendDockerHostList, sendAPIKeyList } = require("./client");
 const { statusPageSocketHandler } = require("./socket-handlers/status-page-socket-handler");
 const databaseSocketHandler = require("./socket-handlers/database-socket-handler");
-const TwoFA = require("./2fa");
 const StatusPage = require("./model/status_page");
-const { cloudflaredSocketHandler, autoStart: cloudflaredAutoStart, stop: cloudflaredStop } = require("./socket-handlers/cloudflared-socket-handler");
 const { proxySocketHandler } = require("./socket-handlers/proxy-socket-handler");
 const { dockerSocketHandler } = require("./socket-handlers/docker-socket-handler");
 const { maintenanceSocketHandler } = require("./socket-handlers/maintenance-socket-handler");
@@ -264,8 +245,6 @@ let needSetup = false;
     log.info("server", "Adding socket handler");
     io.on("connection", async (socket) => {
 
-        sendInfo(socket);
-
         if (needSetup) {
             log.info("server", "Redirect to setup page");
             socket.emit("setup");
@@ -343,57 +322,16 @@ let needSetup = false;
             let user = await login(data.username, data.password);
 
             if (user) {
-                if (user.twofa_status === 0) {
-                    afterLogin(socket, user);
+                afterLogin(socket, user);
 
-                    log.info("auth", `Successfully logged in user ${data.username}. IP=${clientIP}`);
+                log.info("auth", `Successfully logged in user ${data.username}. IP=${clientIP}`);
 
-                    callback({
-                        ok: true,
-                        token: jwt.sign({
-                            username: data.username,
-                        }, jwtSecret),
-                    });
-                }
-
-                if (user.twofa_status === 1 && !data.token) {
-
-                    log.info("auth", `2FA token required for user ${data.username}. IP=${clientIP}`);
-
-                    callback({
-                        tokenRequired: true,
-                    });
-                }
-
-                if (data.token) {
-                    let verify = notp.totp.verify(data.token, user.twofa_secret, twoFAVerifyOptions);
-
-                    if (user.twofa_last_token !== data.token && verify) {
-                        afterLogin(socket, user);
-
-                        await R.exec("UPDATE `user` SET twofa_last_token = ? WHERE id = ? ", [
-                            data.token,
-                            socket.userID,
-                        ]);
-
-                        log.info("auth", `Successfully logged in user ${data.username}. IP=${clientIP}`);
-
-                        callback({
-                            ok: true,
-                            token: jwt.sign({
-                                username: data.username,
-                            }, jwtSecret),
-                        });
-                    } else {
-
-                        log.warn("auth", `Invalid token provided for user ${data.username}. IP=${clientIP}`);
-
-                        callback({
-                            ok: false,
-                            msg: "Invalid Token!",
-                        });
-                    }
-                }
+                callback({
+                    ok: true,
+                    token: jwt.sign({
+                        username: data.username,
+                    }, jwtSecret),
+                });
             } else {
 
                 log.warn("auth", `Incorrect username or password for user ${data.username}. IP=${clientIP}`);
@@ -420,183 +358,12 @@ let needSetup = false;
             }
         });
 
-        socket.on("prepare2FA", async (currentPassword, callback) => {
-            try {
-                if (! await twoFaRateLimiter.pass(callback)) {
-                    return;
-                }
-
-                checkLogin(socket);
-                await doubleCheckPassword(socket, currentPassword);
-
-                let user = await R.findOne("user", " id = ? AND active = 1 ", [
-                    socket.userID,
-                ]);
-
-                if (user.twofa_status === 0) {
-                    let newSecret = genSecret();
-                    let encodedSecret = base32.encode(newSecret);
-
-                    // Google authenticator doesn't like equal signs
-                    // The fix is found at https://github.com/guyht/notp
-                    // Related issue: https://github.com/louislam/uptime-kuma/issues/486
-                    encodedSecret = encodedSecret.toString().replace(/=/g, "");
-
-                    let uri = `otpauth://totp/Uptime%20Kuma:${user.username}?secret=${encodedSecret}`;
-
-                    await R.exec("UPDATE `user` SET twofa_secret = ? WHERE id = ? ", [
-                        newSecret,
-                        socket.userID,
-                    ]);
-
-                    callback({
-                        ok: true,
-                        uri: uri,
-                    });
-                } else {
-                    callback({
-                        ok: false,
-                        msg: "2FA is already enabled.",
-                    });
-                }
-            } catch (error) {
-                callback({
-                    ok: false,
-                    msg: error.message,
-                });
-            }
-        });
-
-        socket.on("save2FA", async (currentPassword, callback) => {
-            const clientIP = await server.getClientIP(socket);
-
-            try {
-                if (! await twoFaRateLimiter.pass(callback)) {
-                    return;
-                }
-
-                checkLogin(socket);
-                await doubleCheckPassword(socket, currentPassword);
-
-                await R.exec("UPDATE `user` SET twofa_status = 1 WHERE id = ? ", [
-                    socket.userID,
-                ]);
-
-                log.info("auth", `Saved 2FA token. IP=${clientIP}`);
-
-                callback({
-                    ok: true,
-                    msg: "2FA Enabled.",
-                });
-            } catch (error) {
-
-                log.error("auth", `Error changing 2FA token. IP=${clientIP}`);
-
-                callback({
-                    ok: false,
-                    msg: error.message,
-                });
-            }
-        });
-
-        socket.on("disable2FA", async (currentPassword, callback) => {
-            const clientIP = await server.getClientIP(socket);
-
-            try {
-                if (! await twoFaRateLimiter.pass(callback)) {
-                    return;
-                }
-
-                checkLogin(socket);
-                await doubleCheckPassword(socket, currentPassword);
-                await TwoFA.disable2FA(socket.userID);
-
-                log.info("auth", `Disabled 2FA token. IP=${clientIP}`);
-
-                callback({
-                    ok: true,
-                    msg: "2FA Disabled.",
-                });
-            } catch (error) {
-
-                log.error("auth", `Error disabling 2FA token. IP=${clientIP}`);
-
-                callback({
-                    ok: false,
-                    msg: error.message,
-                });
-            }
-        });
-
-        socket.on("verifyToken", async (token, currentPassword, callback) => {
-            try {
-                checkLogin(socket);
-                await doubleCheckPassword(socket, currentPassword);
-
-                let user = await R.findOne("user", " id = ? AND active = 1 ", [
-                    socket.userID,
-                ]);
-
-                let verify = notp.totp.verify(token, user.twofa_secret, twoFAVerifyOptions);
-
-                if (user.twofa_last_token !== token && verify) {
-                    callback({
-                        ok: true,
-                        valid: true,
-                    });
-                } else {
-                    callback({
-                        ok: false,
-                        msg: "Invalid Token.",
-                        valid: false,
-                    });
-                }
-
-            } catch (error) {
-                callback({
-                    ok: false,
-                    msg: error.message,
-                });
-            }
-        });
-
-        socket.on("twoFAStatus", async (callback) => {
-            try {
-                checkLogin(socket);
-
-                let user = await R.findOne("user", " id = ? AND active = 1 ", [
-                    socket.userID,
-                ]);
-
-                if (user.twofa_status === 1) {
-                    callback({
-                        ok: true,
-                        status: true,
-                    });
-                } else {
-                    callback({
-                        ok: true,
-                        status: false,
-                    });
-                }
-            } catch (error) {
-                callback({
-                    ok: false,
-                    msg: error.message,
-                });
-            }
-        });
-
         socket.on("needSetup", async (callback) => {
             callback(needSetup);
         });
 
         socket.on("setup", async (username, password, callback) => {
             try {
-                if (passwordStrength(password).value === "Too weak") {
-                    throw new Error("Password is too weak. It should contain alphabetic and numeric characters. It must be at least 6 characters in length.");
-                }
-
                 if ((await R.count("user")) !== 0) {
                     throw new Error("Uptime Kuma has been initialized. If you want to run setup again, please delete the database.");
                 }
@@ -727,11 +494,6 @@ let needSetup = false;
                 bean.grpcBody = monitor.grpcBody;
                 bean.grpcMetadata = monitor.grpcMetadata;
                 bean.grpcEnableTls = monitor.grpcEnableTls;
-                bean.radiusUsername = monitor.radiusUsername;
-                bean.radiusPassword = monitor.radiusPassword;
-                bean.radiusCalledStationId = monitor.radiusCalledStationId;
-                bean.radiusCallingStationId = monitor.radiusCallingStationId;
-                bean.radiusSecret = monitor.radiusSecret;
                 bean.httpBodyEncoding = monitor.httpBodyEncoding;
 
                 bean.validate();
@@ -1078,10 +840,6 @@ let needSetup = false;
                     throw new Error("Invalid new password");
                 }
 
-                if (passwordStrength(password.newPassword).value === "Too weak") {
-                    throw new Error("Password is too weak. It should contain alphabetic and numeric characters. It must be at least 6 characters in length.");
-                }
-
                 let user = await doubleCheckPassword(socket, password.currentPassword);
                 await user.resetPassword(password.newPassword);
 
@@ -1148,8 +906,6 @@ let needSetup = false;
                     ok: true,
                     msg: "Saved"
                 });
-
-                sendInfo(socket);
                 server.sendMaintenanceList(socket);
 
             } catch (e) {
@@ -1232,208 +988,6 @@ let needSetup = false;
             }
         });
 
-        socket.on("uploadBackup", async (uploadedJSON, importHandle, callback) => {
-            try {
-                checkLogin(socket);
-
-                let backupData = JSON.parse(uploadedJSON);
-
-                log.info("manage", `Importing Backup, User ID: ${socket.userID}, Version: ${backupData.version}`);
-
-                let notificationListData = backupData.notificationList;
-                let proxyListData = backupData.proxyList;
-                let monitorListData = backupData.monitorList;
-
-                let version17x = compareVersions.compare(backupData.version, "1.7.0", ">=");
-
-                // If the import option is "overwrite" it'll clear most of the tables, except "settings" and "user"
-                if (importHandle === "overwrite") {
-                    // Stops every monitor first, so it doesn't execute any heartbeat while importing
-                    for (let id in server.monitorList) {
-                        let monitor = server.monitorList[id];
-                        await monitor.stop();
-                    }
-                    await R.exec("DELETE FROM heartbeat");
-                    await R.exec("DELETE FROM monitor_notification");
-                    await R.exec("DELETE FROM monitor_tls_info");
-                    await R.exec("DELETE FROM notification");
-                    await R.exec("DELETE FROM monitor_tag");
-                    await R.exec("DELETE FROM tag");
-                    await R.exec("DELETE FROM monitor");
-                    await R.exec("DELETE FROM proxy");
-                }
-
-                // Only starts importing if the backup file contains at least one notification
-                if (notificationListData.length >= 1) {
-                    // Get every existing notification name and puts them in one simple string
-                    let notificationNameList = await R.getAll("SELECT name FROM notification");
-                    let notificationNameListString = JSON.stringify(notificationNameList);
-
-                    for (let i = 0; i < notificationListData.length; i++) {
-                        // Only starts importing the notification if the import option is "overwrite", "keep" or "skip" but the notification doesn't exists
-                        if ((importHandle === "skip" && notificationNameListString.includes(notificationListData[i].name) === false) || importHandle === "keep" || importHandle === "overwrite") {
-
-                            let notification = JSON.parse(notificationListData[i].config);
-                            await Notification.save(notification, null, socket.userID);
-
-                        }
-                    }
-                }
-
-                // Only starts importing if the backup file contains at least one proxy
-                if (proxyListData && proxyListData.length >= 1) {
-                    const proxies = await R.findAll("proxy");
-
-                    // Loop over proxy list and save proxies
-                    for (const proxy of proxyListData) {
-                        const exists = proxies.find(item => item.id === proxy.id);
-
-                        // Do not process when proxy already exists in import handle is skip and keep
-                        if ([ "skip", "keep" ].includes(importHandle) && !exists) {
-                            return;
-                        }
-
-                        // Save proxy as new entry if exists update exists one
-                        await Proxy.save(proxy, exists ? proxy.id : undefined, proxy.userId);
-                    }
-                }
-
-                // Only starts importing if the backup file contains at least one monitor
-                if (monitorListData.length >= 1) {
-                    // Get every existing monitor name and puts them in one simple string
-                    let monitorNameList = await R.getAll("SELECT name FROM monitor");
-                    let monitorNameListString = JSON.stringify(monitorNameList);
-
-                    for (let i = 0; i < monitorListData.length; i++) {
-                        // Only starts importing the monitor if the import option is "overwrite", "keep" or "skip" but the notification doesn't exists
-                        if ((importHandle === "skip" && monitorNameListString.includes(monitorListData[i].name) === false) || importHandle === "keep" || importHandle === "overwrite") {
-
-                            // Define in here every new variable for monitors which where implemented after the first version of the Import/Export function (1.6.0)
-                            // --- Start ---
-
-                            // Define default values
-                            let retryInterval = 0;
-
-                            /*
-                            Only replace the default value with the backup file data for the specific version, where it appears the first time
-                            More information about that where "let version" will be defined
-                            */
-                            if (version17x) {
-                                retryInterval = monitorListData[i].retryInterval;
-                            }
-
-                            // --- End ---
-
-                            let monitor = {
-                                // Define the new variable from earlier here
-                                name: monitorListData[i].name,
-                                description: monitorListData[i].description,
-                                type: monitorListData[i].type,
-                                url: monitorListData[i].url,
-                                method: monitorListData[i].method || "GET",
-                                body: monitorListData[i].body,
-                                headers: monitorListData[i].headers,
-                                authMethod: monitorListData[i].authMethod,
-                                basic_auth_user: monitorListData[i].basic_auth_user,
-                                basic_auth_pass: monitorListData[i].basic_auth_pass,
-                                authWorkstation: monitorListData[i].authWorkstation,
-                                authDomain: monitorListData[i].authDomain,
-                                interval: monitorListData[i].interval,
-                                retryInterval: retryInterval,
-                                resendInterval: monitorListData[i].resendInterval || 0,
-                                hostname: monitorListData[i].hostname,
-                                maxretries: monitorListData[i].maxretries,
-                                port: monitorListData[i].port,
-                                keyword: monitorListData[i].keyword,
-                                ignoreTls: monitorListData[i].ignoreTls,
-                                upsideDown: monitorListData[i].upsideDown,
-                                maxredirects: monitorListData[i].maxredirects,
-                                accepted_statuscodes: monitorListData[i].accepted_statuscodes,
-                                dns_resolve_type: monitorListData[i].dns_resolve_type,
-                                dns_resolve_server: monitorListData[i].dns_resolve_server,
-                                notificationIDList: {},
-                                proxy_id: monitorListData[i].proxy_id || null,
-                            };
-
-                            if (monitorListData[i].pushToken) {
-                                monitor.pushToken = monitorListData[i].pushToken;
-                            }
-
-                            let bean = R.dispense("monitor");
-
-                            let notificationIDList = monitor.notificationIDList;
-                            delete monitor.notificationIDList;
-
-                            monitor.accepted_statuscodes_json = JSON.stringify(monitor.accepted_statuscodes);
-                            delete monitor.accepted_statuscodes;
-
-                            bean.import(monitor);
-                            bean.user_id = socket.userID;
-                            await R.store(bean);
-
-                            // Only for backup files with the version 1.7.0 or higher, since there was the tag feature implemented
-                            if (version17x) {
-                                // Only import if the specific monitor has tags assigned
-                                for (const oldTag of monitorListData[i].tags) {
-
-                                    // Check if tag already exists and get data ->
-                                    let tag = await R.findOne("tag", " name = ?", [
-                                        oldTag.name,
-                                    ]);
-
-                                    let tagId;
-                                    if (! tag) {
-                                        // -> If it doesn't exist, create new tag from backup file
-                                        let beanTag = R.dispense("tag");
-                                        beanTag.name = oldTag.name;
-                                        beanTag.color = oldTag.color;
-                                        await R.store(beanTag);
-
-                                        tagId = beanTag.id;
-                                    } else {
-                                        // -> If it already exist, set tagId to value from database
-                                        tagId = tag.id;
-                                    }
-
-                                    // Assign the new created tag to the monitor
-                                    await R.exec("INSERT INTO monitor_tag (tag_id, monitor_id, value) VALUES (?, ?, ?)", [
-                                        tagId,
-                                        bean.id,
-                                        oldTag.value,
-                                    ]);
-
-                                }
-                            }
-
-                            await updateMonitorNotification(bean.id, notificationIDList);
-
-                            // If monitor was active start it immediately, otherwise pause it
-                            if (monitorListData[i].active === 1) {
-                                await startMonitor(socket.userID, bean.id);
-                            } else {
-                                await pauseMonitor(socket.userID, bean.id);
-                            }
-
-                        }
-                    }
-
-                    await sendNotificationList(socket);
-                    await server.sendMonitorList(socket);
-                }
-
-                callback({
-                    ok: true,
-                    msg: "Backup successfully restored.",
-                });
-
-            } catch (e) {
-                callback({
-                    ok: false,
-                    msg: e.message,
-                });
-            }
-        });
-
         socket.on("clearEvents", async (monitorID, callback) => {
             try {
                 checkLogin(socket);
@@ -1506,7 +1060,6 @@ let needSetup = false;
 
         // Status Page Socket Handler for admin only
         statusPageSocketHandler(socket);
-        cloudflaredSocketHandler(socket);
         databaseSocketHandler(socket);
         proxySocketHandler(socket);
         dockerSocketHandler(socket);
@@ -1546,7 +1099,6 @@ let needSetup = false;
             log.info("server", `Listening on ${port}`);
         }
         startMonitors();
-        checkVersion.startInterval();
 
         if (testMode) {
             startUnitTest();
@@ -1558,9 +1110,6 @@ let needSetup = false;
     });
 
     initBackgroundJobs(args);
-
-    // Start cloudflared at the end if configured
-    await cloudflaredAutoStart(cloudflaredToken);
 
 })();
 
@@ -1781,7 +1330,6 @@ async function shutdownFunction(signal) {
     await Database.close();
 
     stopBackgroundJobs();
-    await cloudflaredStop();
     Settings.stopCacheCleaner();
 }
 

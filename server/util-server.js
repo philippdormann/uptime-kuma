@@ -10,22 +10,14 @@ const chardet = require("chardet");
 const mqtt = require("mqtt");
 const chroma = require("chroma-js");
 const { badgeConstants } = require("./config");
-const mssql = require("mssql");
 const { Client } = require("pg");
 const postgresConParse = require("pg-connection-string").parse;
 const mysql = require("mysql2");
-const { MongoClient } = require("mongodb");
 const { NtlmClient } = require("axios-ntlm");
 const { Settings } = require("./settings");
 const grpc = require("@grpc/grpc-js");
 const protojs = require("protobufjs");
-const radiusClient = require("node-radius-client");
 const redis = require("redis");
-const {
-    dictionaries: {
-        rfc2865: { file, attributes },
-    },
-} = require("node-radius-utils");
 const dayjs = require("dayjs");
 
 const isWindows = process.platform === /^win/.test(process.platform);
@@ -252,27 +244,6 @@ exports.dnsResolve = function (hostname, resolverServer, resolverPort, rrtype) {
 };
 
 /**
- * Run a query on SQL Server
- * @param {string} connectionString The database connection string
- * @param {string} query The query to validate the database with
- * @returns {Promise<(string[]|Object[]|Object)>}
- */
-exports.mssqlQuery = async function (connectionString, query) {
-    let pool;
-    try {
-        pool = new mssql.ConnectionPool(connectionString);
-        await pool.connect();
-        await pool.request().query(query);
-        pool.close();
-    } catch (e) {
-        if (pool) {
-            pool.close();
-        }
-        throw e;
-    }
-};
-
-/**
  * Run a query on Postgres
  * @param {string} connectionString The database connection string
  * @param {string} query The query to validate the database with
@@ -344,60 +315,6 @@ exports.mysqlQuery = function (connectionString, query) {
             }
             connection.destroy();
         });
-    });
-};
-
-/**
- * Connect to and Ping a MongoDB database
- * @param {string} connectionString The database connection string
- * @returns {Promise<(string[]|Object[]|Object)>}
- */
-exports.mongodbPing = async function (connectionString) {
-    let client = await MongoClient.connect(connectionString);
-    let dbPing = await client.db().command({ ping: 1 });
-    await client.close();
-
-    if (dbPing["ok"] === 1) {
-        return "UP";
-    } else {
-        throw Error("failed");
-    }
-};
-
-/**
- * Query radius server
- * @param {string} hostname Hostname of radius server
- * @param {string} username Username to use
- * @param {string} password Password to use
- * @param {string} calledStationId ID of called station
- * @param {string} callingStationId ID of calling station
- * @param {string} secret Secret to use
- * @param {number} [port=1812] Port to contact radius server on
- * @returns {Promise<any>}
- */
-exports.radius = function (
-    hostname,
-    username,
-    password,
-    calledStationId,
-    callingStationId,
-    secret,
-    port = 1812,
-) {
-    const client = new radiusClient({
-        host: hostname,
-        hostPort: port,
-        dictionaries: [ file ],
-    });
-
-    return client.accessRequest({
-        secret: secret,
-        attributes: [
-            [ attributes.USER_NAME, username ],
-            [ attributes.USER_PASSWORD, password ],
-            [ attributes.CALLING_STATION_ID, callingStationId ],
-            [ attributes.CALLED_STATION_ID, calledStationId ],
-        ],
     });
 };
 

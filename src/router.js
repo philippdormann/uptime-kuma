@@ -25,13 +25,9 @@ import Plugins from "./components/settings/Plugins.vue";
 import Appearance from "./components/settings/Appearance.vue";
 import General from "./components/settings/General.vue";
 const Notifications = () => import("./components/settings/Notifications.vue");
-import ReverseProxy from "./components/settings/ReverseProxy.vue";
 import Tags from "./components/settings/Tags.vue";
 import MonitorHistory from "./components/settings/MonitorHistory.vue";
 const Security = () => import("./components/settings/Security.vue");
-import Proxies from "./components/settings/Proxies.vue";
-import Backup from "./components/settings/Backup.vue";
-import About from "./components/settings/About.vue";
 
 const routes = [
     {
@@ -99,10 +95,6 @@ const routes = [
                                 component: Notifications,
                             },
                             {
-                                path: "reverse-proxy",
-                                component: ReverseProxy,
-                            },
-                            {
                                 path: "tags",
                                 component: Tags,
                             },
@@ -123,20 +115,8 @@ const routes = [
                                 component: APIKeys,
                             },
                             {
-                                path: "proxies",
-                                component: Proxies,
-                            },
-                            {
-                                path: "backup",
-                                component: Backup,
-                            },
-                            {
                                 path: "plugins",
                                 component: Plugins,
-                            },
-                            {
-                                path: "about",
-                                component: About,
                             },
                         ]
                     },

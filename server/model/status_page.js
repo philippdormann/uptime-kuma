@@ -3,7 +3,6 @@ const { R } = require("redbean-node");
 const cheerio = require("cheerio");
 const { UptimeKumaServer } = require("../uptime-kuma-server");
 const jsesc = require("jsesc");
-const googleAnalytics = require("../google-analytics");
 
 class StatusPage extends BeanModel {
 
@@ -52,11 +51,6 @@ class StatusPage extends BeanModel {
         }
 
         const head = $("head");
-
-        if (statusPage.googleAnalyticsTagId) {
-            let escapedGoogleAnalyticsScript = googleAnalytics.getGoogleAnalyticsScript(statusPage.googleAnalyticsTagId);
-            head.append($(escapedGoogleAnalyticsScript));
-        }
 
         // OG Meta Tags
         let ogTitle = $("<meta property=\"og:title\" content=\"\" />").attr("content", statusPage.title);
@@ -233,7 +227,6 @@ class StatusPage extends BeanModel {
             customCSS: this.custom_css,
             footerText: this.footer_text,
             showPoweredBy: !!this.show_powered_by,
-            googleAnalyticsId: this.google_analytics_tag_id,
         };
     }
 
@@ -254,7 +247,6 @@ class StatusPage extends BeanModel {
             customCSS: this.custom_css,
             footerText: this.footer_text,
             showPoweredBy: !!this.show_powered_by,
-            googleAnalyticsId: this.google_analytics_tag_id,
         };
     }
 

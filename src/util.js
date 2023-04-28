@@ -23,7 +23,7 @@ exports.SQL_DATE_FORMAT = "YYYY-MM-DD";
 exports.SQL_DATETIME_FORMAT = "YYYY-MM-DD HH:mm:ss";
 exports.SQL_DATETIME_FORMAT_WITHOUT_SECOND = "YYYY-MM-DD HH:mm";
 exports.MAX_INTERVAL_SECOND = 2073600; // 24 days
-exports.MIN_INTERVAL_SECOND = 20; // 20 seconds
+exports.MIN_INTERVAL_SECOND = 5; // 20 seconds
 /** Flip the status of s */
 function flipStatus(s) {
     if (s === exports.UP) {

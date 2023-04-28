@@ -1,7 +1,7 @@
 const { checkLogin } = require("../util-server");
 const { log } = require("../../src/util");
 const { R } = require("redbean-node");
-const { nanoid } = require("nanoid");
+const { createId } = require('@paralleldrive/cuid2');
 const passwordHash = require("../password-hash");
 const apicache = require("../modules/apicache");
 const APIKey = require("../model/api_key");
@@ -18,7 +18,7 @@ module.exports.apiKeySocketHandler = (socket) => {
         try {
             checkLogin(socket);
 
-            let clearKey = nanoid(40);
+            let clearKey = createId();
             let hashedKey = passwordHash.generate(clearKey);
             key["key"] = hashedKey;
             let bean = await APIKey.save(key, socket.userID);

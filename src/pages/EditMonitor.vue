@@ -45,26 +45,14 @@
                                         <option value="steam">
                                             {{ $t("Steam Game Server") }}
                                         </option>
-                                        <option value="gamedig">
-                                            GameDig
-                                        </option>
                                         <option value="mqtt">
                                             MQTT
-                                        </option>
-                                        <option value="sqlserver">
-                                            Microsoft SQL Server
                                         </option>
                                         <option value="postgres">
                                             PostgreSQL
                                         </option>
                                         <option value="mysql">
                                             MySQL/MariaDB
-                                        </option>
-                                        <option value="mongodb">
-                                            MongoDB
-                                        </option>
-                                        <option value="radius">
-                                            Radius
                                         </option>
                                         <option value="redis">
                                             Redis
@@ -120,27 +108,16 @@
                                 </div>
                             </div>
 
-                            <!-- Game -->
-                            <!-- GameDig only -->
-                            <div v-if="monitor.type === 'gamedig'" class="my-3">
-                                <label for="game" class="form-label"> {{ $t("Game") }} </label>
-                                <select id="game" v-model="monitor.game" class="form-select" required>
-                                    <option v-for="game in gameList" :key="game.keys[0]" :value="game.keys[0]">
-                                        {{ game.pretty }}
-                                    </option>
-                                </select>
-                            </div>
-
                             <!-- Hostname -->
-                            <!-- TCP Port / Ping / DNS / Steam / MQTT / Radius only -->
-                            <div v-if="monitor.type === 'port' || monitor.type === 'ping' || monitor.type === 'dns' || monitor.type === 'steam' || monitor.type === 'gamedig' ||monitor.type === 'mqtt' || monitor.type === 'radius'" class="my-3">
+                            <!-- TCP Port / Ping / DNS / Steam / MQTT only -->
+                            <div v-if="monitor.type === 'port' || monitor.type === 'ping' || monitor.type === 'dns' || monitor.type === 'steam' ||monitor.type === 'mqtt'" class="my-3">
                                 <label for="hostname" class="form-label">{{ $t("Hostname") }}</label>
                                 <input id="hostname" v-model="monitor.hostname" type="text" class="form-control" :pattern="`${monitor.type === 'mqtt' ? mqttIpOrHostnameRegexPattern : ipOrHostnameRegexPattern}`" required>
                             </div>
 
                             <!-- Port -->
-                            <!-- For TCP Port / Steam / MQTT / Radius Type -->
-                            <div v-if="monitor.type === 'port' || monitor.type === 'steam' || monitor.type === 'gamedig' || monitor.type === 'mqtt' || monitor.type === 'radius'" class="my-3">
+                            <!-- For TCP Port / Steam / MQTT Type -->
+                            <div v-if="monitor.type === 'port' || monitor.type === 'steam' || monitor.type === 'mqtt'" class="my-3">
                                 <label for="port" class="form-label">{{ $t("Port") }}</label>
                                 <input id="port" v-model="monitor.port" type="number" class="form-control" required min="0" max="65535" step="1">
                             </div>
@@ -247,72 +224,11 @@
                                 </div>
                             </template>
 
-                            <template v-if="monitor.type === 'radius'">
-                                <div class="my-3">
-                                    <label for="radius_username" class="form-label">Radius {{ $t("Username") }}</label>
-                                    <input id="radius_username" v-model="monitor.radiusUsername" type="text" class="form-control" required />
-                                </div>
-
-                                <div class="my-3">
-                                    <label for="radius_password" class="form-label">Radius {{ $t("Password") }}</label>
-                                    <input id="radius_password" v-model="monitor.radiusPassword" type="password" class="form-control" required />
-                                </div>
-
-                                <div class="my-3">
-                                    <label for="radius_secret" class="form-label">{{ $t("RadiusSecret") }}</label>
-                                    <input id="radius_secret" v-model="monitor.radiusSecret" type="password" class="form-control" required />
-                                    <div class="form-text"> {{ $t( "RadiusSecretDescription") }} </div>
-                                </div>
-
-                                <div class="my-3">
-                                    <label for="radius_called_station_id" class="form-label">{{ $t("RadiusCalledStationId") }}</label>
-                                    <input id="radius_called_station_id" v-model="monitor.radiusCalledStationId" type="text" class="form-control" required />
-                                    <div class="form-text"> {{ $t( "RadiusCalledStationIdDescription") }} </div>
-                                </div>
-
-                                <div class="my-3">
-                                    <label for="radius_calling_station_id" class="form-label">{{ $t("RadiusCallingStationId") }}</label>
-                                    <input id="radius_calling_station_id" v-model="monitor.radiusCallingStationId" type="text" class="form-control" required />
-                                    <div class="form-text"> {{ $t( "RadiusCallingStationIdDescription") }} </div>
-                                </div>
-                            </template>
-
-                            <!-- SQL Server / PostgreSQL / MySQL -->
-                            <template v-if="monitor.type === 'sqlserver' || monitor.type === 'postgres' || monitor.type === 'mysql'">
-                                <div class="my-3">
-                                    <label for="sqlConnectionString" class="form-label">{{ $t("Connection String") }}</label>
-
-                                    <template v-if="monitor.type === 'sqlserver'">
-                                        <input id="sqlConnectionString" v-model="monitor.databaseConnectionString" type="text" class="form-control">
-                                    </template>
-                                    <template v-if="monitor.type === 'postgres'">
-                                        <input id="sqlConnectionString" v-model="monitor.databaseConnectionString" type="text" class="form-control">
-                                    </template>
-                                    <template v-if="monitor.type === 'mysql'">
-                                        <input id="sqlConnectionString" v-model="monitor.databaseConnectionString" type="text" class="form-control">
-                                    </template>
-                                </div>
-                                <div class="my-3">
-                                    <label for="sqlQuery" class="form-label">{{ $t("Query") }}</label>
-                                    <textarea id="sqlQuery" v-model="monitor.databaseQuery" class="form-control" placeholder="Example: select getdate()"></textarea>
-                                </div>
-                            </template>
                             <!-- Redis -->
                             <template v-if="monitor.type === 'redis'">
                                 <div class="my-3">
                                     <label for="redisConnectionString" class="form-label">{{ $t("Connection String") }}</label>
                                     <input id="redisConnectionString" v-model="monitor.databaseConnectionString" type="text" class="form-control">
-                                </div>
-                            </template>
-
-                            <!-- MongoDB -->
-                            <template v-if="monitor.type === 'mongodb'">
-                                <div class="my-3">
-                                    <label for="sqlConnectionString" class="form-label">{{ $t("Connection String") }}</label>
-
-                                    <template v-if="monitor.type === 'mongodb'">
-                                        <input id="sqlConnectionString" v-model="monitor.databaseConnectionString" type="text" class="form-control">
-                                    </template>
                                 </div>
                             </template>
 
@@ -448,34 +364,6 @@
                             <button class="btn btn-primary me-2" type="button" @click="$refs.notificationDialog.show()">
                                 {{ $t("Setup Notification") }}
                             </button>
-
-                            <!-- Proxies -->
-                            <div v-if="monitor.type === 'http' || monitor.type === 'keyword'">
-                                <h2 class="mt-5 mb-2">{{ $t("Proxy") }}</h2>
-                                <p v-if="$root.proxyList.length === 0">
-                                    {{ $t("Not available, please setup.") }}
-                                </p>
-
-                                <div v-if="$root.proxyList.length > 0" class="form-check my-3">
-                                    <input id="proxy-disable" v-model="monitor.proxyId" :value="null" name="proxy" class="form-check-input" type="radio">
-                                    <label class="form-check-label" for="proxy-disable">{{ $t("No Proxy") }}</label>
-                                </div>
-
-                                <div v-for="proxy in $root.proxyList" :key="proxy.id" class="form-check my-3">
-                                    <input :id="`proxy-${proxy.id}`" v-model="monitor.proxyId" :value="proxy.id" name="proxy" class="form-check-input" type="radio">
-
-                                    <label class="form-check-label" :for="`proxy-${proxy.id}`">
-                                        {{ proxy.host }}:{{ proxy.port }} ({{ proxy.protocol }})
-                                        <a href="#" @click="$refs.proxyDialog.show(proxy.id)">{{ $t("Edit") }}</a>
-                                    </label>
-
-                                    <span v-if="proxy.default === true" class="badge bg-primary ms-2">{{ $t("default") }}</span>
-                                </div>
-
-                                <button class="btn btn-primary me-2" type="button" @click="$refs.proxyDialog.show()">
-                                    {{ $t("Setup Proxy") }}
-                                </button>
-                            </div>
 
                             <!-- HTTP Options -->
                             <template v-if="monitor.type === 'http' || monitor.type === 'keyword' ">
@@ -693,11 +581,9 @@ export default {
             mqttIpOrHostnameRegexPattern: hostNameRegexPattern(true),
             gameList: null,
             connectionStringTemplates: {
-                "sqlserver": "Server=<hostname>,<port>;Database=<your database>;User Id=<your user id>;Password=<your password>;Encrypt=<true/false>;TrustServerCertificate=<Yes/No>;Connection Timeout=<int>",
                 "postgres": "postgres://username:password@host:port/database",
                 "mysql": "mysql://username:password@host:port/database",
                 "redis": "redis://user:password@host:port",
-                "mongodb": "mongodb://username:password@host:port/database",
             }
         };
     },
@@ -843,22 +729,9 @@ message HealthCheckResponse {
             if (! this.monitor.port || this.monitor.port === "53" || this.monitor.port === "1812") {
                 if (this.monitor.type === "dns") {
                     this.monitor.port = "53";
-                } else if (this.monitor.type === "radius") {
-                    this.monitor.port = "1812";
                 } else {
                     this.monitor.port = undefined;
                 }
-            }
-
-            // Get the game list from server
-            if (this.monitor.type === "gamedig") {
-                this.$root.getSocket().emit("getGameList", (res) => {
-                    if (res.ok) {
-                        this.gameList = res.gameList;
-                    } else {
-                        toast.error(res.msg);
-                    }
-                });
             }
 
             // Set default database connection string if empty or it is a template from another database monitor type
